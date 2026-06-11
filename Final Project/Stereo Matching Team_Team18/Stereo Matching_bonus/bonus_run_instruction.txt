@@ -1,0 +1,115 @@
+Stereo Matching Team - Team18
+Bonus run instruction
+
+1. Folder structure
+
+Place the bonus folder as:
+
+Stereo Matching Team_Team18/
+  Stereo Matching_bonus/
+    computeDisp.py
+    object_depth_order_demo.py
+    make_depth_order_video.py
+    requirements_bonus.txt
+    README_depth_order_bonus.md
+    phone_data/
+      scene1/
+        left.jpg
+        right.jpg
+    results/
+      depth_order_scene1/
+
+The input stereo pair is:
+
+phone_data/scene1/left.jpg
+phone_data/scene1/right.jpg
+
+The existing generated result folder is:
+
+results/depth_order_scene1/
+
+2. Environment
+
+Recommended environment:
+
+Python 3.x
+numpy==1.24.4
+opencv-contrib-python==4.13.0.92
+pandas
+tqdm
+psutil
+
+Install required packages:
+
+pip install -r requirements_bonus.txt
+
+opencv-contrib-python is required because computeDisp.py uses cv2.ximgproc for guided filtering and weighted median filtering.
+
+3. Run bonus demo
+
+From the Stereo Matching_bonus folder, run:
+
+python object_depth_order_demo.py --left phone_data/scene1/left.jpg --right phone_data/scene1/right.jpg --out_dir results/depth_order_scene1 --max_disp 96
+
+An ROI selection window will appear. Select three object regions:
+
+1. Near object region
+2. Middle object region
+3. Far/background region
+
+Press ENTER or SPACE after each selected ROI, then press ESC after all ROIs are selected.
+
+For reproducing the current generated result without interactive ROI selection, run:
+
+python object_depth_order_demo.py --left phone_data/scene1/left.jpg --right phone_data/scene1/right.jpg --out_dir results/depth_order_scene1 --max_disp 96 --boxes "Object_1:501,254,89,422;Object_2:311,582,134,72;Object_3:139,88,296,287" --no_interactive
+
+4. Current output data
+
+Current depth ordering result:
+
+rank,name,depth_score,p50_disparity,p75_disparity,valid_ratio,valid_pixels,used_for_score,x,y,w,h
+1,Object_1,71,41,71,0.0243,914,1,501,254,89,422
+2,Object_2,7,5,7,0.1689,1630,1,311,582,134,72
+3,Object_3,0,6,6,0.0002,21,0,139,88,296,287
+
+Interpretation:
+
+Object_1 is ranked as the closest object and labeled DANGER / TOO CLOSE.
+Object_2 is ranked as the middle object and labeled CAUTION / MID RANGE.
+Object_3 is ranked as the farthest region and labeled SAFE / FAR.
+
+The current image pair contains a transparent bottle. Transparent or reflective objects are not recommended for stereo matching because left/right appearances can be inconsistent. The program therefore also reports reliable-pixel ratio to indicate whether the ROI disparity score is trustworthy.
+
+5. Generated result files
+
+After running the bonus demo, the output folder should contain:
+
+results/depth_order_scene1/matches.png
+results/depth_order_scene1/rectified_left.png
+results/depth_order_scene1/rectified_right.png
+results/depth_order_scene1/rectified_pair_guides.png
+results/depth_order_scene1/disparity_raw.png
+results/depth_order_scene1/disparity_color.png
+results/depth_order_scene1/disparity_reliable_raw.png
+results/depth_order_scene1/disparity_reliable_color.png
+results/depth_order_scene1/object_depth_order_result.png
+results/depth_order_scene1/obstacle_warning_result.png
+results/depth_order_scene1/depth_order.csv
+
+6. Optional visual demo video
+
+This video is only a supplemental visual aid for showing the bonus pipeline. It does not replace the recorded presentation slides required by TA.
+
+From the Stereo Matching_bonus folder, run:
+
+python make_depth_order_video.py --result_dir results/depth_order_scene1 --output depth_order_demo_video.mp4
+
+The optional generated video is:
+
+depth_order_demo_video.mp4
+
+7. Method summary
+
+The bonus system captures two horizontally shifted phone images as a stereo pair. It detects ORB feature correspondences, estimates the fundamental matrix with RANSAC, performs uncalibrated stereo rectification, computes disparity using the submitted computeDisp.py algorithm, and ranks selected object ROIs by reliable p75 disparity score.
+
+No OpenCV built-in stereo matching implementation is used.

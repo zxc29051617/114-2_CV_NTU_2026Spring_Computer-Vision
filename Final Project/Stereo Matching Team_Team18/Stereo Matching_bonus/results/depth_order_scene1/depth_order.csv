@@ -1,0 +1,4 @@
+rank,name,depth_score,p50_disparity,p75_disparity,valid_ratio,valid_pixels,used_for_score,x,y,w,h
+1,Object_1,72.0000,41.0000,72.0000,0.0250,1004,1,497,241,92,436
+2,Object_2,7.0000,6.0000,7.0000,0.2412,1847,1,300,588,111,69
+3,Object_3,0.0000,71.0000,71.0000,0.0002,16,0,188,179,209,310
