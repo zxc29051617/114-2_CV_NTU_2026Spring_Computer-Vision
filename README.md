@@ -126,10 +126,10 @@ HW2 包含傳統手工特徵場景辨識，以及深度學習影像分類兩部�
 
 ## HW3: Projective Geometry
 
-題目說明：[`HW3/hw3.pdf`](HW3/hw3.pdf)
+題目說明：[`HW3/hw3.pdf`](HW3/hw3.pdf)  
+作業說明：[`HW3/hw3/README.md`](HW3/hw3/README.md)
 
-HW3 以 homography 為核心，練習影像投影、AR 與 panorama。此目錄目前沒有獨立
-README，因此本節依題目 PDF 與程式內容整理。
+HW3 以 homography 為核心，練習影像投影、AR 與 panorama。
 
 ### 四個部分
 
