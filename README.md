@@ -107,3 +107,12 @@ python main.py --image Tsukuba
 用手機水平移動拍攝左右影像，經過特徵比對、未校正的 stereo rectification 與 disparity 估計後，排出物體的
 遠近順序，並標示為近距離警告、中距離注意或遠距離安全。詳細說明見
 [`README_depth_order_bonus.md`](<Final Project/Stereo Matching Team_Team18/Stereo Matching_bonus/README_depth_order_bonus.md>)。
+
+### 後續升級：StereoGuard
+
+期末專題結束後，把 bonus 的手機雙拍深度感知改寫成完整的應用
+[StereoGuard](<Final Project/StereoGuard/README.md>)：用預測的焦距做 calibrated rectification，以
+FoundationStereo 計算視差，再用 Depth Pro、UniDepthV2、Depth Anything V2 估計手機移動距離換算成公尺；
+YOLO11-seg 或 Grounding DINO + SAM 2.1 自動辨識物體，依真實距離門檻給出 DANGER / CAUTION / SAFE 與建議的
+行進方向，另外支援影片追蹤、碰撞時間（TTC）估計與 Gradio 網頁介面。在 MiddEval3 上 bad-1.0 從 19.4% 降到
+2.6%；已知手機移動距離時，1–3 公尺內的物體距離誤差不到 1 公分。

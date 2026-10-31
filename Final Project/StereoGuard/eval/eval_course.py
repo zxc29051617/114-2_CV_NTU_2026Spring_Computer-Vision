@@ -1,4 +1,5 @@
-"""Course test pairs: bad pixel ratio and runtime of the Team 18 matcher vs Fast-FoundationStereo.
+"""Course test pairs: bad pixel ratio and run time of the Team 18 matcher vs Fast-FoundationStereo
+(both can run on a CPU; eval/eval_stereo.py adds FoundationStereo from cached GPU runs).
 
     python eval/eval_course.py [--device cpu|cuda] [--threads 4]
 
@@ -92,8 +93,6 @@ def main():
         rows.append(row)
         print(f"{name:8s} census {100 * row['census_bad']:6.2f}%  ffs {100 * row['ffs_bad']:6.2f}%  "
               f"time {row['census_time']:.2f}s / {row['ffs_time']:.2f}s")
-        cv2.imwrite(os.path.join(a.out, f"{name}_census.png"), np.uint8(np.clip(dc * scale, 0, 255)))
-        cv2.imwrite(os.path.join(a.out, f"{name}_ffs.png"), np.uint8(np.clip(dd_int * scale, 0, 255)))
         vis.append((name, L, gt, dc * scale, dd_int * scale, row))
 
     with open(os.path.join(a.out, "course_results.csv"), "w") as f:
@@ -118,7 +117,7 @@ def main():
                f"Fast-FoundationStereo {100 * row['ffs_bad']:.2f}%")
         cv2.putText(lab, txt, (6, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (20, 20, 20), 1, cv2.LINE_AA)
         tiles[-1] = np.vstack([lab, tiles[-1]])
-    cv2.imwrite(os.path.join(a.out, "course_comparison.jpg"), np.vstack(tiles), [cv2.IMWRITE_JPEG_QUALITY, 88])
+    cv2.imwrite(os.path.join(a.out, "course_census_vs_ffs.jpg"), np.vstack(tiles), [cv2.IMWRITE_JPEG_QUALITY, 88])
 
 
 if __name__ == "__main__":
