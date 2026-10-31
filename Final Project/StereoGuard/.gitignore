@@ -1,0 +1,9 @@
+# downloaded model weights and datasets (see scripts/download_weights.sh, scripts/download_data.sh)
+weights/
+data/
+outputs/
+__pycache__/
+*.pyc
+.gradio/
+flagged/
+third_party/

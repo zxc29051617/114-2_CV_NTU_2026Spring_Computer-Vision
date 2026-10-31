@@ -1,0 +1,40 @@
+torch>=2.4
+torchvision
+onnxruntime>=1.20          # onnxruntime-gpu for CUDA
+ultralytics>=8.3.100       # YOLO11-seg, YOLOE, ByteTrack
+lap                        # ByteTrack association (video mode)
+ftfy                       # text tokenizer for YOLOE
+transformers>=4.56         # Depth Anything V2, Depth Pro, Grounding DINO, SAM 2.1
+huggingface_hub
+safetensors
+moge @ git+https://github.com/microsoft/MoGe.git@b942f00bdc2a2a23ebb474fbe034d487e6dcceec
+# FoundationStereo / UniDepth / MapAnything / Video Depth Anything code is cloned into third_party/
+omegaconf
+einops
+timm
+joblib
+easydict
+hydra-core
+natsort
+orjson
+plyfile
+python-box
+jaxtyping
+termcolor
+torchmetrics
+scikit-learn
+gdown                      # FoundationStereo checkpoints are shared on Google Drive
+gradio>=5
+trimesh
+imageio
+imageio-ffmpeg
+scipy
+matplotlib
+pandas
+pillow
+numpy
+# installed without dependencies (see scripts/setup_env.sh): uniception==0.1.7, vggt
+# ultralytics / moge pull in opencv-python; the Team 18 matcher needs the contrib build (cv2.ximgproc):
+#   pip uninstall -y opencv-python opencv-python-headless
+#   pip install --force-reinstall --no-deps opencv-contrib-python-headless==4.13.0.92
+opencv-contrib-python-headless==4.13.0.92
