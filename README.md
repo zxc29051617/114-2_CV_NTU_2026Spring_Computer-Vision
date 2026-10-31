@@ -1,6 +1,6 @@
 # NTU Computer Vision 2026 Spring
 
-這個 repository 收錄臺大 114-2 電腦視覺（Computer Vision）課程的講義、三份作業與 Stereo Matching 期末專題。
+這個 repository 收錄臺大 114-2 電腦視覺（簡韶逸老師）課程的講義、三份作業與 Stereo Matching 期末專題。
 
 內容從基礎影像處理與局部特徵開始，延伸到場景分類、CNN、projective geometry、panorama、stereo matching
 與深度感知。
