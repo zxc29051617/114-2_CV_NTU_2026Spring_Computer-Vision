@@ -1,0 +1,138 @@
+{
+  "original": {
+    "rectification": {
+      "n_matches": 407,
+      "median_abs_dy_px": 0.4974797641787063,
+      "p90_abs_dy_px": 1.1191481697637073,
+      "disp_p1": -65.48491504498273,
+      "disp_p50": 5.152543661504694,
+      "disp_p99": 49.27442732126065,
+      "negative_disp_ratio": 0.3488943488943489,
+      "method": "uncalibrated (original Team 18)",
+      "inliers": 407,
+      "valid_area_ratio": 0.71565
+    },
+    "disparity_time_s": 6.498868895927444,
+    "reliable_pixel_ratio": 0.004648148148148148,
+    "ranking": [
+      {
+        "name": "Object_1",
+        "score": 71.0,
+        "reliable_ratio": 0.024335694126417808,
+        "label": "DANGER"
+      },
+      {
+        "name": "Object_2",
+        "score": 7.0,
+        "reliable_ratio": 0.1689469320066335,
+        "label": "CAUTION"
+      },
+      {
+        "name": "Object_3",
+        "score": 0.0,
+        "reliable_ratio": 0.00024719841793012525,
+        "label": "SAFE"
+      }
+    ]
+  },
+  "stereoguard": {
+    "intrinsics": "median of VGGT 57.4, Depth Pro 64.5, MoGe-2 69.6 FoV (64.5 deg)",
+    "focal_px": 740.93,
+    "image_size": [
+      960,
+      720
+    ],
+    "baseline_cm": 8.76,
+    "baseline_source": "estimated: depthpro 7.9 cm, unidepth 8.0 cm, dav2l 10.6 cm",
+    "baseline_spread": 0.138,
+    "reliable_stereo_ratio": 0.657,
+    "rectification": {
+      "n_matches": 183,
+      "median_abs_dy_px": 0.255,
+      "p90_abs_dy_px": 0.649,
+      "disp_p1": 176.133,
+      "disp_p50": 248.701,
+      "disp_p99": 302.712,
+      "negative_disp_ratio": 0.0,
+      "method": "calibrated (essential matrix + stereoRectify)",
+      "inliers": 183,
+      "rotation_deg": 3.498,
+      "t_dir": [
+        -0.9777212561786159,
+        0.03690731345623587,
+        0.20663735245582446
+      ],
+      "valid_area_ratio": 0.971,
+      "stereo_scale": 0.6,
+      "stereo_width": 960,
+      "disp_offset_px": 0,
+      "feature_disp_range_px": [
+        105.7,
+        181.6
+      ]
+    },
+    "profile": "tabletop",
+    "thresholds_m": [
+      0.4,
+      0.8
+    ],
+    "support_plane": {
+      "camera_height_m": 0.066,
+      "inlier_ratio": 0.441
+    },
+    "suggested_heading_deg": -30.0,
+    "free_straight_m": 0.295,
+    "hint": "ahead: bottle 0.36 m [DANGER] | veer left 30 deg",
+    "objects": [
+      {
+        "name": "bottle",
+        "track_id": -1,
+        "confidence": 0.8,
+        "distance_m": 0.362,
+        "median_depth_m": 0.368,
+        "lateral_m": -0.035,
+        "height_m": 0.173,
+        "width_m": 0.062,
+        "reliable_ratio": 0.934,
+        "in_path": true,
+        "level": "DANGER"
+      },
+      {
+        "name": "book",
+        "track_id": -1,
+        "confidence": 0.418,
+        "distance_m": 0.436,
+        "median_depth_m": 0.442,
+        "lateral_m": -0.126,
+        "height_m": 0.037,
+        "width_m": 0.068,
+        "reliable_ratio": 0.773,
+        "in_path": false,
+        "level": "SAFE"
+      },
+      {
+        "name": "tv",
+        "track_id": -1,
+        "confidence": 0.776,
+        "distance_m": 0.881,
+        "median_depth_m": 0.96,
+        "lateral_m": -0.63,
+        "height_m": 0.68,
+        "width_m": 0.365,
+        "reliable_ratio": 0.215,
+        "in_path": false,
+        "level": "SAFE"
+      }
+    ],
+    "timings_s": {
+      "fov_s": 33.59,
+      "rectify_s": 0.56,
+      "stereo_s": 5.51,
+      "mono_s": 20.89,
+      "freespace_s": 0.15,
+      "detect_s": 0.84
+    },
+    "notes": []
+  },
+  "stereoguard_total_s": 73.543588652974
+}
