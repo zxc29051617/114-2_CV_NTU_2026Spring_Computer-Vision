@@ -2,20 +2,28 @@
  "focal": "median of VGGT 57.4, Depth Pro 64.5, MoGe-2 69.6 FoV (64.5 deg)",
  "rows": [
   {
-   "source": "Depth Anything V2 Metric-S",
-   "baseline_cm": 10.1,
-   "bottle_dist_m": 0.419,
-   "bottle_height_m": 0.2,
-   "bottle_width_m": 0.072,
-   "tv_width_m": 1.225
+   "source": "UniDepthV2-L",
+   "baseline_cm": 8.0,
+   "bottle_dist_m": 0.33,
+   "bottle_height_m": 0.158,
+   "bottle_width_m": 0.056,
+   "tv_width_m": 0.965
   },
   {
-   "source": "Depth Anything V2 Metric-L",
-   "baseline_cm": 10.6,
-   "bottle_dist_m": 0.439,
-   "bottle_height_m": 0.21,
-   "bottle_width_m": 0.075,
-   "tv_width_m": 1.285
+   "source": "MoGe-2 ViT-L",
+   "baseline_cm": 7.0,
+   "bottle_dist_m": 0.288,
+   "bottle_height_m": 0.138,
+   "bottle_width_m": 0.049,
+   "tv_width_m": 0.843
+  },
+  {
+   "source": "Metric3D v2 ViT-L",
+   "baseline_cm": 8.6,
+   "bottle_dist_m": 0.354,
+   "bottle_height_m": 0.17,
+   "bottle_width_m": 0.061,
+   "tv_width_m": 1.036
   },
   {
    "source": "MoGe-2 ViT-S",
@@ -26,6 +34,22 @@
    "tv_width_m": 0.715
   },
   {
+   "source": "Depth Anything V2 Metric-L",
+   "baseline_cm": 10.6,
+   "bottle_dist_m": 0.439,
+   "bottle_height_m": 0.21,
+   "bottle_width_m": 0.075,
+   "tv_width_m": 1.285
+  },
+  {
+   "source": "Depth Anything V2 Metric-S",
+   "baseline_cm": 10.1,
+   "bottle_dist_m": 0.419,
+   "bottle_height_m": 0.2,
+   "bottle_width_m": 0.072,
+   "tv_width_m": 1.225
+  },
+  {
    "source": "Depth Pro",
    "baseline_cm": 7.9,
    "bottle_dist_m": 0.326,
@@ -34,12 +58,12 @@
    "tv_width_m": 0.955
   },
   {
-   "source": "UniDepthV2-L",
-   "baseline_cm": 8.0,
-   "bottle_dist_m": 0.33,
-   "bottle_height_m": 0.158,
-   "bottle_width_m": 0.056,
-   "tv_width_m": 0.965
+   "source": "fused (default)",
+   "baseline_cm": 6.7,
+   "bottle_dist_m": 0.276,
+   "bottle_height_m": 0.132,
+   "bottle_width_m": 0.047,
+   "tv_width_m": 0.807
   },
   {
    "source": "MapAnything (camera poses)",

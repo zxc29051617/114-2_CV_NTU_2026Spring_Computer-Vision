@@ -112,7 +112,7 @@ python main.py --image Tsukuba
 
 期末專題結束後，把 bonus 的手機雙拍深度感知改寫成完整的應用
 [StereoGuard](<Final Project/StereoGuard/README.md>)：用預測的焦距做 calibrated rectification，以
-FoundationStereo 計算視差，再用 Depth Pro、UniDepthV2、Depth Anything V2 估計手機移動距離換算成公尺；
+FoundationStereo 計算視差，再用七個單眼公尺深度模型的加權融合估計手機移動距離換算成公尺；
 YOLO11-seg 或 Grounding DINO + SAM 2.1 自動辨識物體，依真實距離門檻給出 DANGER / CAUTION / SAFE 與建議的
 行進方向，另外支援影片追蹤、碰撞時間（TTC）估計與 Gradio 網頁介面。在 MiddEval3 上 bad-1.0 從 19.4% 降到
-2.6%；已知手機移動距離時，1–3 公尺內的物體距離誤差不到 1 公分。
+2.6%；在 iPad 實拍的 ARKitScenes 平移照片上，物體距離誤差約 5%（已知移動距離）到 7%（自動估計）。

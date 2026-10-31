@@ -4,9 +4,10 @@ StereoGuard 是臺大 114-2 電腦視覺（簡韶逸老師）期末專題第 18 
 用一支手機水平移動拍兩張照片，經過特徵比對、未校正 rectification 與 Census 立體匹配後，依手動框選區域的
 視差排名，把物體標成 DANGER / CAUTION / SAFE。這個版本保留「一支手機拍兩張就能感知深度」的想法，把整條
 流程換成目前最新的模型並做成實際能用的應用：用預測的焦距做 calibrated rectification，以 FoundationStereo
-算視差，用三個單眼公尺深度模型估計手機移動了多少、換算成公尺，自動辨識物體（也能用文字指定），依真實距離
-門檻給警示並指出可以走的方向；另外支援影片的追蹤與碰撞時間（TTC）估計，以及網頁介面。每個環節都在有真值
-的資料上和其他候選模型比較過，再決定用哪一個。
+算視差，用七個單眼公尺深度模型的加權融合估計手機移動了多少、換算成公尺，自動辨識物體（也能用文字指定），
+依真實距離門檻給警示並指出可以走的方向；另外支援影片的追蹤與碰撞時間（TTC）估計，以及網頁介面。每個環節
+都在有真值的資料上和其他候選模型比較過，包括用 iPad 拍的 ARKitScenes 影片做出的「手機平移」照片對
+（雷射掃描深度當真值），再決定用哪一個。
 
 ![原版與 StereoGuard 的比較](results/phone/original_vs_stereoguard.jpg)
 
@@ -20,8 +21,9 @@ StereoGuard 是臺大 114-2 電腦視覺（簡韶逸老師）期末專題第 18 
   essential matrix 後做 calibrated rectification，視差全部為正，並依特徵點的視差自動決定解析度與視差偏移。
 - **立體匹配**：FoundationStereo（ViT-L，CVPR 2025）為預設；Fast-FoundationStereo（CVPR 2026，ONNX）
   用在影片與沒有 GPU 的電腦；原本第 18 組的 Census matcher 保留為對照組。都會做 left-right check。
-- **公尺距離**：知道手機移動幾公分就直接 Z = f·B/d；不知道時用 Depth Pro、UniDepthV2、
-  Depth Anything V2 Metric 各估一次移動距離再取幾何平均，並用常見物體尺寸檢查結果是否合理。
+- **公尺距離**：知道手機移動幾公分就直接 Z = f·B/d；不知道時由 UniDepthV2、MoGe-2、Metric3D v2、
+  Depth Pro、Depth Anything V2 等七個單眼模型各估一次移動距離，扣掉各自的系統偏差後依誤差變異數加權平均，
+  並用常見物體尺寸檢查結果是否合理。
 - **物體辨識**：YOLO11-seg（COCO 80 類）為預設；開放詞彙模式用 Grounding DINO 找框、SAM 2.1 切遮罩，
   可以找「cable」「desk lamp」這類 COCO 沒有的東西。
 - **依真實門檻警示**：每個物體回報距離、左右偏移、高度、寬度，依「距離 + 是否在行進路徑上（+ TTC）」
@@ -56,7 +58,7 @@ StereoGuard 是臺大 114-2 電腦視覺（簡韶逸老師）期末專題第 18 
 左右照片 ─▶ SIFT 匹配 ─▶ essential matrix（焦距：EXIF / VGGT·Depth Pro·MoGe-2 中位數）
         ─▶ calibrated rectification ─▶ 依特徵視差決定解析度與視差偏移
         ─▶ FoundationStereo（左右各算一次做 LR check）
-        ─▶ Z = f·B/d（B 已知，或 Depth Pro·UniDepthV2·DA-V2 估計）＋ 單眼深度補洞 ─▶ 尺寸合理性檢查
+        ─▶ Z = f·B/d（B 已知，或七個單眼模型加權融合）＋ 單眼深度補洞 ─▶ 尺寸合理性檢查
         ─▶ YOLO11-seg 或 Grounding DINO + SAM 2.1 ─▶ 每個物體的距離 / 左右位置 / 高度 ─▶ 警示等級
         ─▶ RANSAC 地面 ─▶ 俯視占據格點 ─▶ 各方向可走距離 ─▶ 建議方向
 ```
@@ -71,8 +73,10 @@ StereoGuard 是臺大 114-2 電腦視覺（簡韶逸老師）期末專題第 18 
 3. **立體匹配**：FoundationStereo 以 DepthAnything 的單眼先驗輔助 cost volume，在 Middlebury 與 ETH3D
    排行榜都是第一；兩個 FoundationStereo 模型都沒有用 Middlebury 訓練，下面的結果都是 zero-shot。
    右視差用左右翻轉的影像再跑一次，做 left-right check。
-4. **公尺尺度**：B 已知時 Z = f·B/d；未知時，對每個可靠像素算 B_i = Z_mono·d/f 取中位數，三個單眼模型
-   各得一個 B，再取幾何平均。若瓶子、杯子、螢幕等常見物體的尺寸明顯不合理，會在結果中提醒要量移動距離。
+4. **公尺尺度**：B 已知時 Z = f·B/d；未知時，對每個可靠像素算 B_i = Z_mono·d/f 取中位數，每個單眼模型
+   各得一個 B。每個模型在驗證資料上有固定的高估或低估（例如 MoGe-2 平均高估約 30%），所以先在對數上扣掉
+   這個偏差，再以「1 / 對數誤差變異數」為權重做加權平均（權重存在 `stereoguard/scale_fusion.json`）。
+   若瓶子、杯子、螢幕等常見物體的尺寸明顯不合理，會在結果中提醒要量移動距離。
 5. **物體距離**：遮罩先內縮 2 px 避開邊界，距離取遮罩內深度的第 20 百分位（離相機最近的表面），左右位置、
    高度與寬度在地面座標系中計算。
 6. **警示規則**：物體的左右範圍和通道（桌面 ±6 cm、步行 ±35 cm、行車 ±0.95 m）重疊就算「在路徑上」。
@@ -121,30 +125,57 @@ non-occluded 區域，FoundationStereo 的誤差都是最低的。應用中這�
 
 ![課程測資比較](results/course/course_comparison.jpg)
 
-### 2. 公尺尺度與焦距從哪裡來
+### 2. 手機實拍驗證：ARKitScenes 平移照片對
 
-手機移動距離未知時，物體距離的誤差就等於估計出來的移動距離的誤差（視差本身已經很準）。下表的「移動距離」
-用 FoundationStereo 的視差與各模型的深度估計，模型都給定真實視角；「焦距」是只看照片時預測的焦距。
+Middlebury 與 KITTI 都是校正好的相機，和「手拿手機平移」不同。為了得到手機相機的數字，從 ARKitScenes
+（Apple，iPad Pro 拍攝，雷射掃描器提供深度真值）的驗證集挑出 26 對照片：每對是同一段影片中的兩幀，ARKit
+位姿顯示相機往右平移 7–23 cm、轉動小於 5°，就像第 18 組的拍法（`scripts/download_arkitscenes.py`，只用
+HTTP range 抓需要的兩張 640×480 影格）。StereoGuard 用和手機照片完全相同的流程跑（SIFT + essential matrix
+校正、影格的焦距當作 EXIF、FoundationStereo），雷射深度再轉到校正後的左影像比較。26 對中有 7 對失敗：2 對
+特徵點太少，5 對可靠的立體像素太少、無法估尺度；以下是其餘 19 對（14 段影片）。
 
-| 模型 | 移動距離誤差（平均 / 中位數） | 焦距誤差（全部 / 手機相機場景） | 時間 | GPU 記憶體 |
+| 移動距離 | 像素誤差 < 5% | 物體平均相對誤差 | 物體誤差中位數 |
+|---|---:|---:|---:|
+| 已知（ARKit 位姿） | 51% | 5.6% | 4.1% |
+| 估計：舊預設（Depth Pro + UniDepthV2 + DA-V2-L 幾何平均） | 6% | 32.5% | 13.8% |
+| **估計：新預設（七個模型、扣偏差、加權；權重用另一半影片決定）** | **41%** | **7.0%** | **4.0%** |
+
+- 已知移動距離時，手機實拍的物體距離誤差約 5%，比 Middlebury 的 0.4% 大很多。原因是手持平移時，essential
+  matrix 估出的旋轉有約 0.3–0.5° 的誤差，而手機只平移 10 cm、物體在 1–2 公尺外時，這點旋轉誤差就相當於
+  好幾個像素的視差偏移。用 ARKit 位姿直接校正也沒有比較好（垂直誤差中位數 2.3 px，對比 essential matrix
+  的 0.3 px），因為 10 Hz 的位姿內插本身就有誤差，所以這裡的「已知」真值也有幾個百分比的不確定性
+  （`eval/eval_arkit_pose.py`）。
+- 舊預設在 Middlebury 上是挑出來最好的組合，但在手機資料上把移動距離平均高估 45%；Depth Pro 在這批
+  640×480 的室內影格上尤其不穩（平均誤差 192%）。
+
+### 3. 公尺尺度從哪裡來
+
+手機移動距離未知時，物體距離的誤差就等於估出來的移動距離的誤差。下表是每個模型估移動距離的平均誤差，
+以及幾種融合方法。融合的權重與偏差只在一部分資料上決定，再到沒看過的資料上測（`eval/eval_scale_fusion.py`）。
+
+| 方法 | Middlebury（26 場景） | ARKitScenes（19 對） | 時間 | GPU 記憶體 |
 |---|---:|---:|---:|---:|
-| Depth Anything V2 Metric-S | 29.5% / 24.7% | – | 0.06 s | 0.3 GB |
-| Depth Anything V2 Metric-L | 23.6% / 24.6% | – | 0.24 s | 1.9 GB |
-| MoGe-2 ViT-S | 53.6% / 44.0% | 26.8% / 15.3% | 0.22 s | 1.2 GB |
-| MoGe-2 ViT-L | 34.4% / 24.5% | 28.7% / 18.0% | 0.42 s | 2.4 GB |
-| Depth Pro | 18.9% / **10.6%** | 11.7% / 11.2% | 1.27 s | 3.9 GB |
-| UniDepthV2-L | 18.5% / 15.6% | 26.5% / 19.0% | 0.19 s | 2.5 GB |
-| MapAnything（兩張照片，相機位置） | 79.6% / 74.5% | 30.0% / 10.5% | 0.52 s | 9.8 GB |
-| VGGT（兩張照片） | –（沒有公尺尺度） | **10.9% / 4.1%** | 0.31 s | 10.1 GB |
-| **Depth Pro + UniDepthV2 + DA-V2-L 幾何平均** | **15.1% / 10.8%** | – | | |
-| **VGGT、Depth Pro、MoGe-2 焦距中位數** | | 17.6%（MiddEval3）/ 7.4% | | |
+| Depth Pro | 18.9% | 192% | 1.27 s | 3.9 GB |
+| UniDepthV2-L | 18.5% | 10.4% | 0.19 s | 2.5 GB |
+| MoGe-2 ViT-S / ViT-L | 53.6% / 34.4% | 13.6% / 10.3% | 0.2 / 0.4 s | 1.2 / 2.4 GB |
+| Metric3D v2 ViT-L | 51.4% | 20.5% | 0.74 s | 3.2 GB |
+| Depth Anything V2 Metric-S / L | 29.5% / 23.6% | 40.3% / 31.0% | 0.06 / 0.24 s | 0.3 / 1.9 GB |
+| MapAnything（兩張照片，相機位置） | 79.6% | – | 0.52 s | 9.8 GB |
+| 舊預設：Depth Pro + UniDepthV2 + DA-V2-L 幾何平均 | 15.1%（在此挑選） | 45.4% | | |
+| 七個模型取中位數（不需調整） | 21.3% | 15.9% | | |
+| **新預設：扣偏差 + 變異數加權**，用 Middlebury 調 → 測 ARKit | | **14.2%** | | |
+| **新預設**，用 ARKit 一半影片調 → 測另一半 | | **9.6%** | | |
+| **新預設**，用 ARKit 調 → 測 Middlebury | **18.5%** | | | |
+| 再加常見物體尺寸先驗 | 18.5% | 9.5% | | |
 
-- 已知移動距離時，1–3 公尺內物體的距離誤差不到 1 公分；不知道時只能靠單眼模型，誤差約 15%。
-- 近距離的桌面場景對單眼模型特別難，MoGe-2 平均把距離高估約 50%；以多視角模型來說，MapAnything 的
-  公尺尺度在這些場景也偏差很大，VGGT 則是焦距最準的。
-- 三個模型的組合是在同一批資料上挑的，數字會略為樂觀。
+- 不同資料上最好的模型不一樣：Middlebury 上 Depth Pro、UniDepthV2 較好，手機影格上 UniDepthV2、
+  MoGe-2 較好；UniDepthV2 是兩邊都穩定的單一模型。融合可以把各模型的偏差扣掉，在沒看過的手機資料上約
+  10–14%，所以改為預設，最終權重用全部 45 組資料擬合。
+- 物體尺寸先驗幾乎沒有幫助：19 對裡只有 2 對有不被裁切、又有尺寸先驗的物體。
+- 只看照片預測焦距時，VGGT 在手機相機資料上誤差最小（4.1%），VGGT、Depth Pro、MoGe-2 三者中位數為 7.4%；
+  MapAnything 的焦距 10.5%，但公尺尺度偏差很大。
 
-### 3. 單支相機的影片深度（KITTI，LiDAR 當真值）
+### 4. 單支相機的影片深度（KITTI，LiDAR 當真值）
 
 資料：KITTI raw `2011_09_26_drive_0005`（154 幀、約 16 秒，市區街道，車子跟在一台腳踏車後面）。每幀用
 YOLO11-seg + ByteTrack 追蹤物體，把 Velodyne 點投影到影像，物體遮罩內的 LiDAR 點（至少 8 個）取第 20
@@ -163,7 +194,7 @@ Video Depth Anything 的深度在時間上很平順，但這段影片的整體�
 MoGe-2，所以單支相機的影片預設用 MoGe-2。雙目深度在 40 公尺內的誤差約 1–5%，TTC 也和 LiDAR 很接近，
 這也是為什麼主要模式仍然是兩張照片的立體視覺。
 
-### 4. 物體辨識
+### 5. 物體辨識
 
 | 偵測器 | 第 18 組照片找到的東西 | 說明 |
 |---|---|---|
@@ -174,7 +205,8 @@ MoGe-2，所以單支相機的影片預設用 MoGe-2。雙目深度在 40 公尺
 ![開放詞彙的結果](results/phone/ar_open_vocab.jpg)
 
 上圖是開放詞彙模式（提示詞：bottle, book, monitor, cable, desk lamp, wall socket），焦距與移動距離沿用下面
-預設模式的結果；牆上的電線與瓶子的提帶都被當成 cable 找了出來。
+預設模式的結果；牆上的電線與瓶子的提帶都被當成 cable 找了出來，SAM 2.1 的遮罩把整本書（包括被瓶子擋住
+的兩側）都切出來，所以書被算在路徑上。
 
 ## 實驗結果：第 18 組的手機照片
 
@@ -187,23 +219,28 @@ MoGe-2，所以單支相機的影片預設用 MoGe-2。雙目深度在 40 公尺
 | 視差搜尋 | 固定 0–96 px | 自動：特徵視差 106–182 px（960 px 寬），FoundationStereo 不需偏移 |
 | 可靠像素（LR check） | 0.46% | 65.7% |
 | 找到的物體 | 手動 3 個框 | bottle、book、tv（含遮罩） |
-| 輸出 | 名次 → DANGER / CAUTION / SAFE | 瓶子 0.36 m、在路徑上 → DANGER；書 0.44 m、tv 0.88 m → SAFE；建議往左 30° |
+| 輸出 | 名次 → DANGER / CAUTION / SAFE | 瓶子 0.28 m、在路徑上 → DANGER；書 0.33 m → CAUTION；tv 0.75 m → SAFE；建議往左 32° |
 
 這組照片經過通訊軟體壓縮，沒有 EXIF，也沒有記錄手機移動了多少。下表是各尺度來源估出的移動距離，以及
 它換算出的瓶子距離與大小（幾何來自 FoundationStereo，只有整體比例不同）：
 
 | 尺度來源 | 移動距離 | 瓶子距離 | 瓶子高 × 寬 |
 |---|---:|---:|---:|
-| Depth Anything V2 Metric-S | 10.1 cm | 0.42 m | 20 × 7.2 cm |
-| Depth Anything V2 Metric-L | 10.6 cm | 0.44 m | 21 × 7.5 cm |
-| MoGe-2 ViT-S | 5.9 cm | 0.24 m | 12 × 4.2 cm |
-| Depth Pro | 7.9 cm | 0.33 m | 16 × 5.6 cm |
 | UniDepthV2-L | 8.0 cm | 0.33 m | 16 × 5.6 cm |
+| MoGe-2 ViT-L | 7.0 cm | 0.29 m | 14 × 4.9 cm |
+| Metric3D v2 ViT-L | 8.6 cm | 0.35 m | 17 × 6.1 cm |
+| MoGe-2 ViT-S | 5.9 cm | 0.24 m | 12 × 4.2 cm |
+| Depth Anything V2 Metric-L | 10.6 cm | 0.44 m | 21 × 7.5 cm |
+| Depth Anything V2 Metric-S | 10.1 cm | 0.42 m | 20 × 7.2 cm |
+| Depth Pro | 7.9 cm | 0.33 m | 16 × 5.6 cm |
 | MapAnything（相機位置） | 25.9 cm | 1.07 m | 51 × 18 cm |
-| **預設（Depth Pro、UniDepthV2、DA-V2-L 幾何平均）** | **8.8 cm** | **0.36 m** | **17 × 6.2 cm** |
+| **預設（七個模型扣偏差、加權）** | **6.7 cm** | **0.28 m** | **13 × 4.7 cm** |
+| 舊預設（Depth Pro、UniDepthV2、DA-V2-L 幾何平均） | 8.8 cm | 0.36 m | 17 × 6.2 cm |
 
-預設的 8.8 cm 落在原本拍攝說明寫的 5–10 cm 之內，瓶子的大小也合理；但各模型之間差了好幾倍，所以只要
-重拍時量一下移動距離並用 `--baseline_cm` 輸入，就能得到公分等級的距離。
+預設估出 6.7 cm，落在原本拍攝說明寫的 5–10 cm 之內。在手機驗證資料上這種估計平均誤差約 10%，但這組照片
+各模型之間差得比較多（扣完偏差後對數標準差 0.23，約 ±25%），而且瓶子高 13 cm、寬 4.7 cm 偏小，一般
+600 ml 左右的水壺約高 20 cm、寬 7 cm，代表實際移動距離可能更接近 9–10 cm。所以這組照片的公尺數應視為
+±25% 左右；重拍時量一下移動距離並用 `--baseline_cm` 輸入，誤差就會降到約 5%（手機實拍）。
 
 ![StereoGuard 輸出](results/phone/dashboard.jpg)
 
@@ -239,7 +276,8 @@ python run_pair.py ... --detector gsam --prompts "bottle, book, monitor, cable, 
 
 輸出：`ar.png`（AR 標示）、`depth.png`、`disparity.png`、`topview.png`、`pointcloud.ply / .png`、
 `objects.csv`、`summary.json`。精準模式在 GPU 上連同載入模型約 1 分半，大部分時間在載入 VGGT 等大模型。
-快速模式少了三個大模型，尺度也比較不準：同一組照片它估出的移動距離是 18.9 cm（精準模式 8.8 cm）。
+快速模式只用 Depth Anything V2 Metric-S 一個模型估尺度，在手機驗證資料上平均誤差約 40%，只適合沒有 GPU
+時先看一下。
 
 ### 影片
 
@@ -262,7 +300,11 @@ python scripts/download_data.py course middeval3 mb2021 kitti
 python eval/eval_course.py                     # 課程測資（原版的 CPU 版本比較）
 for e in census ffs fs; do python eval/cache_stereo.py --engine $e; done
 python eval/eval_stereo.py                     # 立體匹配：課程、MiddEval3、公尺距離
-python eval/eval_scale.py                      # 移動距離與焦距的來源比較
+python eval/eval_scale.py                      # 移動距離與焦距的來源比較（Middlebury）
+python scripts/download_arkitscenes.py --videos 40   # ARKitScenes 平移照片對（約 1.3 GB）
+python eval/eval_arkit.py                      # 手機實拍：已知 / 估計移動距離的距離誤差
+python eval/eval_arkit_pose.py                 # 手機實拍：焦距、內參、ARKit 位姿對校正的影響
+python eval/eval_scale_fusion.py               # 融合方法比較，並寫出 stereoguard/scale_fusion.json
 python eval/cache_video_depth.py --encoder vitl && python eval/eval_kitti.py   # KITTI 距離與 TTC
 python eval/eval_phone_scene.py                # 第 18 組照片：原版與 StereoGuard
 python eval/phone_scale_sources.py             # 第 18 組照片：各尺度來源
@@ -271,7 +313,8 @@ python eval/phone_scale_sources.py             # 第 18 組照片：各尺度來
 ## 拍攝建議
 
 - 手機只做水平平移，盡量不要轉動或前後移動；移動距離約為最近物體距離的 1/10 到 1/5。
-- 沿著桌邊或尺移動並記下移動幾公分，距離誤差會從約 15% 變成約 1%。
+- 沿著桌邊或尺移動並記下移動幾公分，手機實拍的距離誤差會從約 10–15% 降到約 5%。
+- 移動距離至少是物體距離的 1/10：旋轉估計的小誤差對短距離平移影響最大。
 - 用 1x 主鏡頭，保留原始照片（EXIF 有焦距）；透明或反光物體、純白牆仍然比較難。
 
 ## 使用的模型與授權
@@ -284,15 +327,17 @@ python eval/phone_scale_sources.py             # 第 18 組照片：各尺度來
 | [Fast-FoundationStereo](https://huggingface.co/nvidia/c-fast-foundationstereo) | 影片 / CPU 的立體匹配 | NVIDIA Open Model Agreement |
 | [Depth Pro](https://huggingface.co/apple/DepthPro-hf) | 移動距離、焦距 | Apple ML Research Model License（研究用途） |
 | [UniDepthV2-L](https://github.com/lpiccinelli-eth/UniDepth) | 移動距離 | CC BY-NC 4.0 |
+| [Metric3D v2](https://github.com/YvanYin/Metric3D) ViT-L | 移動距離 | BSD-2-Clause |
 | [Depth Anything V2 Metric](https://github.com/DepthAnything/Depth-Anything-V2) S / L | 移動距離、補洞 | Small：Apache-2.0；Large：CC BY-NC 4.0 |
-| [MoGe-2](https://github.com/microsoft/MoGe) ViT-S | 焦距、單支相機影片 | MIT |
+| [MoGe-2](https://github.com/microsoft/MoGe) ViT-S / ViT-L | 焦距、移動距離、單支相機影片 | MIT |
 | [VGGT-1B](https://huggingface.co/facebook/VGGT-1B) | 焦距 | CC BY-NC 4.0 |
 | [MapAnything](https://huggingface.co/facebook/map-anything-apache)（Apache 版） | 比較用 | Apache-2.0 |
 | [Video Depth Anything](https://github.com/DepthAnything/Video-Depth-Anything) Metric S / L | 比較用 | Small：Apache-2.0；Large：CC BY-NC 4.0 |
 | [YOLO11-seg](https://docs.ultralytics.com/models/yolo11/)、YOLOE | 物體辨識 | AGPL-3.0 |
 | [Grounding DINO](https://huggingface.co/IDEA-Research/grounding-dino-base)、[SAM 2.1](https://huggingface.co/facebook/sam2.1-hiera-large) | 開放詞彙物體 | Apache-2.0 |
 
-課程作業使用沒有問題；若要商業使用，需要換掉標示非商業的模型（例如改用 Fast-FoundationStereo、
+驗證資料 [ARKitScenes](https://github.com/apple/ARKitScenes) 依 Apple 的授權供非商業使用，只由腳本下載，不放進
+git。課程作業使用沒有問題；若要商業使用，需要換掉標示非商業的模型（例如改用 Fast-FoundationStereo、
 DA-V2-S、MapAnything Apache 版）。
 
 ## 檔案結構
@@ -321,7 +366,10 @@ StereoGuard/
 
 ## 限制
 
-- 移動距離未知時的公尺尺度來自單眼模型，平均誤差約 15%，個別場景會差到兩倍；請盡量量移動距離。
+- 移動距離未知時的公尺尺度來自單眼模型，在沒看過的手機資料上平均誤差約 10–14%，個別場景會差到 ±25%
+  以上；請盡量量移動距離。
+- 手持平移時，相機旋轉的估計誤差（約 0.3–0.5°）會變成視差偏移；即使知道移動距離，手機實拍的物體距離誤差
+  仍約 5%，且 ARKitScenes 測試的 26 對裡有 7 對因為特徵點或可靠像素太少而失敗。
 - 透明的水瓶、純白牆面、反光桌面仍會有錯誤的視差，程式用 LR check 與單眼深度補洞，但不能保證正確。
 - 手機平移太多（> 物體距離的 1/3）或有明顯前後移動時，校正後的視角會被裁切。
 - 單支相機的影片沒有立體資訊，距離誤差約 16%，TTC 誤差約 20%，只適合當作提醒。
@@ -372,5 +420,6 @@ StereoGuard/
 - *Real-Time Assistive Navigation for the Visually Impaired: A Scalable Approach for Indoor and Outdoor Mobility*, 2025. [arXiv](https://arxiv.org/abs/2504.20976)
 
 資料集
+- Baruch et al., *ARKitScenes: A Diverse Real-World Dataset for 3D Indoor Scene Understanding Using Mobile RGB-D Data*, NeurIPS 2021 Datasets and Benchmarks. [arXiv](https://arxiv.org/abs/2111.08897) / [GitHub](https://github.com/apple/ARKitScenes)
 - Middlebury Stereo：[2001 / 2003 / 2014 / 2021](https://vision.middlebury.edu/stereo/data/)（Scharstein & Szeliski 2002、2003；Scharstein et al. 2014）
 - Geiger et al., *Vision meets Robotics: The KITTI Dataset*, IJRR 2013. [raw data](https://www.cvlibs.net/datasets/kitti/raw_data.php)

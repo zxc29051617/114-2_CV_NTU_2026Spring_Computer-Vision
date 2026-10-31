@@ -1,0 +1,32 @@
+{
+ "pairs": 19,
+ "videos": 14,
+ "slide_cm": [
+  7.386500977521634,
+  23.412615991855322
+ ],
+ "known_baseline": {
+  "pixels_within5": 0.46437667528127785,
+  "pixels_within10": 0.6462115094282992,
+  "absrel": 0.0799190933374982,
+  "objects": 19,
+  "object_mean_rel": 0.07671043191472547,
+  "object_median_rel": 0.04763573984468165,
+  "object_within10": 0.7894736842105263,
+  "object_mean_abs_m": 0.10967309851395457
+ },
+ "estimated_baseline": {
+  "pixels_within5": 0.06366681444736541,
+  "pixels_within10": 0.11360574832341948,
+  "absrel": 0.4455750698321744,
+  "objects": 19,
+  "object_mean_rel": 0.3204762904926001,
+  "object_median_rel": 0.14259449858694262,
+  "object_within10": 0.10526315789473684,
+  "object_mean_abs_m": 0.34735972316641556
+ },
+ "ensemble_baseline_error": {
+  "mean": 0.4544594870720529,
+  "median": 0.3461637933150732
+ }
+}
