@@ -10,8 +10,7 @@
 ```text
 .
 ├── README.md
-├── lec00.pdf ... lec16.pdf      # 課程講義
-├── SfM.pdf                      # Structure from Motion 補充教材
+├── lectures/                    # 課程講義與 Structure from Motion 補充教材
 ├── HW1/                         # DoG 與 Joint Bilateral Filter
 ├── HW2/                         # 場景辨識與 CNN 影像分類
 ├── HW3/                         # Homography、AR、Panorama
