@@ -1,6 +1,6 @@
 """Download model weights into weights/ and third-party model code into third_party/ (both ignored by git).
 
-    python scripts/download_weights.py                 # what the demos need: ffs fs yolo dav2 moge2
+    python scripts/download_weights.py                 # what the default pipeline needs
     python scripts/download_weights.py --only fs       # one model
     python scripts/download_weights.py --all           # also every model used in eval/
 
@@ -14,6 +14,8 @@ dav2  Depth Anything V2 Metric Indoor S / L  HF depth-anything             Apach
 moge2 MoGe-2 ViT-S           HF Ruicheng/moge-2-vits-normal                MIT (code)
 depthpro Depth Pro           HF apple/DepthPro-hf                          Apple ML research license
 unidepth UniDepthV2-L        HF lpiccinelli/unidepth-v2-vitl14             CC-BY-NC-4.0
+metric3d Metric3D v2 ViT-L   HF JUGGHM/Metric3D                            BSD-2-Clause
+moge2l MoGe-2 ViT-L          HF Ruicheng/moge-2-vitl-normal                MIT (code)
 mapanything MapAnything      HF facebook/map-anything-apache               Apache-2.0
 vggt  VGGT-1B                HF facebook/VGGT-1B                           non-commercial (VGGT license)
 vda   Metric Video Depth Anything S / L  HF depth-anything                 Apache-2.0 / CC-BY-NC-4.0
@@ -37,6 +39,7 @@ CODE = {  # repository, pinned commit
     "UniDepth": ("https://github.com/lpiccinelli-eth/UniDepth.git", "8d8cfe4c7ee15297099983607febf0d4f32eb3d6"),
     "Video-Depth-Anything": ("https://github.com/DepthAnything/Video-Depth-Anything.git",
                              "4f5ae23172ba60fd7bc11ef671cca678842c7072"),
+    "Metric3D": ("https://github.com/YvanYin/Metric3D.git", "eb5b6fac0dc155e4e52f576e304fbf11655ff339"),
 }
 
 
@@ -131,6 +134,15 @@ def get_unidepth():
     hf("lpiccinelli/unidepth-v2-vitl14", ["config.json", "model.safetensors"])
 
 
+def get_metric3d():
+    clone("Metric3D")
+    hf("JUGGHM/Metric3D", ["metric_depth_vit_large_800k.pth"])
+
+
+def get_moge2l():
+    hf("Ruicheng/moge-2-vitl-normal")
+
+
 def get_mapanything():
     clone("map-anything")
     hf("facebook/map-anything-apache", ["config.json", "model.safetensors"])
@@ -148,8 +160,9 @@ def get_vda():
 
 GETTERS = {"ffs": get_ffs, "fs": get_fs, "yolo": get_yolo, "yoloe": get_yoloe, "gsam": get_gsam,
            "dav2": get_dav2, "dav2l": get_dav2l, "moge2": get_moge2, "depthpro": get_depthpro,
-           "unidepth": get_unidepth, "mapanything": get_mapanything, "vggt": get_vggt, "vda": get_vda}
-DEFAULT = ["ffs", "fs", "yolo", "dav2", "moge2", "depthpro"]
+           "unidepth": get_unidepth, "metric3d": get_metric3d, "moge2l": get_moge2l,
+           "mapanything": get_mapanything, "vggt": get_vggt, "vda": get_vda}
+DEFAULT = ["ffs", "fs", "yolo", "dav2", "dav2l", "moge2", "moge2l", "depthpro", "unidepth", "metric3d", "vggt"]
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()

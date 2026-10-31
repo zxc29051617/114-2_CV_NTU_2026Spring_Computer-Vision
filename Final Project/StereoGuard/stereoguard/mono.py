@@ -161,3 +161,52 @@ class VideoDepthAnythingMetric:
         """frames_rgb: (T, H, W, 3) uint8 RGB -> (T, H, W) depth in meters."""
         depths, _ = self.model.infer_video_depth(frames_rgb, fps, input_size=518, device=self.device, fp32=False)
         return np.stack(depths).astype(np.float32)
+
+
+class Metric3Dv2:
+    """Metric3D v2 ViT-L (TPAMI 2024): metric depth in a canonical camera, rescaled by the focal length."""
+
+    name = "Metric3D v2"
+
+    def __init__(self, device="cuda"):
+        import sys
+        import torch
+        from huggingface_hub import hf_hub_download
+        code = os.path.join(APP_ROOT, "third_party", "Metric3D")
+        if code not in sys.path:
+            sys.path.insert(0, code)
+        import types
+        from mmengine import Config
+        if "mmcv" not in sys.modules:                 # mono.utils.comm only needs mmcv for env logging
+            mmcv = types.ModuleType("mmcv")
+            mmcv.utils = types.ModuleType("mmcv.utils")
+            mmcv.utils.collect_env = lambda: {}
+            sys.modules["mmcv"], sys.modules["mmcv.utils"] = mmcv, mmcv.utils
+        from mono.model.monodepth_model import get_configured_monodepth_model
+        cfg = Config.fromfile(os.path.join(code, "mono/configs/HourglassDecoder/vit.raft5.large.py"))
+        self.model = get_configured_monodepth_model(cfg)
+        ckpt = hf_hub_download("JUGGHM/Metric3D", "metric_depth_vit_large_800k.pth", cache_dir=HF_CACHE)
+        self.model.load_state_dict(torch.load(ckpt, map_location="cpu", weights_only=False)["model_state_dict"],
+                                   strict=False)
+        self.model = self.model.to(device).eval()
+        self.torch, self.device = torch, device
+
+    def __call__(self, img_bgr, hfov_deg=None):
+        torch = self.torch
+        h, w = img_bgr.shape[:2]
+        f = w / (2 * np.tan(np.radians(hfov_deg or 60.0) / 2))
+        ih, iw = 616, 1064                                   # input size of the ViT models
+        s = min(ih / h, iw / w)
+        rgb = cv2.resize(cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB), (int(w * s), int(h * s)),
+                         interpolation=cv2.INTER_LINEAR)
+        mean = np.array([123.675, 116.28, 103.53], np.float32)
+        std = np.array([58.395, 57.12, 57.375], np.float32)
+        ph, pw = ih - rgb.shape[0], iw - rgb.shape[1]
+        top, left = ph // 2, pw // 2
+        pad = cv2.copyMakeBorder(rgb, top, ph - top, left, pw - left, cv2.BORDER_CONSTANT, value=mean.tolist())
+        x = torch.from_numpy(((pad - mean) / std).transpose(2, 0, 1)).float()[None].to(self.device)
+        with torch.inference_mode():
+            depth, _, _ = self.model.inference({"input": x})
+        d = depth[0, 0, top:top + rgb.shape[0], left:left + rgb.shape[1]].float().cpu().numpy()
+        d = cv2.resize(d, (w, h), interpolation=cv2.INTER_LINEAR) * (f * s / 1000.0)   # canonical f = 1000
+        return np.clip(d, 0, 300).astype(np.float32), hfov_deg

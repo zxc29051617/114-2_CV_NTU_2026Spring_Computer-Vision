@@ -33,6 +33,7 @@ class RectifiedPair:
     pts_left: np.ndarray = None  # inlier matches in rectified coordinates (for diagnostics)
     pts_right: np.ndarray = None
     valid: np.ndarray = None    # pixels of the rectified left view that come from inside the photo
+    R_left: np.ndarray = None   # rotation applied to the left camera by the rectification
 
 
 def match_features(img1, img2, max_features=8000, ratio=0.8):
@@ -76,10 +77,12 @@ def rectification_stats(pl, pr):
     }
 
 
-def rectify_calibrated(img1, img2, K: Intrinsics, alpha=0.5, match_width=1600):
+def rectify_calibrated(img1, img2, K: Intrinsics, alpha=0.5, match_width=1600, pose=None):
     """Calibrated rectification of a sideways phone slide.
 
     img1/img2 must have the same size as K.  Matching runs on a downscaled copy for speed.
+    pose: optional known (R, t) with x2 = R x1 + t (e.g. from AR tracking) instead of the
+    essential matrix; used to separate pose errors from matching errors in the evaluation.
     """
     h, w = img1.shape[:2]
     s = min(1.0, match_width / w)
@@ -98,6 +101,9 @@ def rectify_calibrated(img1, img2, K: Intrinsics, alpha=0.5, match_width=1600):
     inl = inl.ravel().astype(bool)
     _, R, t, pose_mask = cv2.recoverPose(E, p1[inl], p2[inl], Km)
     t = t.ravel()
+    if pose is not None:
+        R, t = np.asarray(pose[0], float), np.asarray(pose[1], float).ravel()
+        t = t / np.linalg.norm(t)
     p1i, p2i = p1[inl], p2[inl]
 
     # camera-2 center in camera-1 coordinates; if it is on the left, swap the roles
@@ -131,7 +137,7 @@ def rectify_calibrated(img1, img2, K: Intrinsics, alpha=0.5, match_width=1600):
     })
     stats["valid_area_ratio"] = float(valid.mean())
     return RectifiedPair(left, right, float(P1[0, 0]), float(P1[0, 2]), float(P1[1, 2]), swapped,
-                         R, t / np.linalg.norm(t), stats, H1, pl, pr, valid)
+                         R, t / np.linalg.norm(t), stats, H1, pl, pr, valid, R1)
 
 
 def rectify_uncalibrated_original(img1, img2):

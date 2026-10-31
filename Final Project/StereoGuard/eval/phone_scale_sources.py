@@ -18,9 +18,10 @@ from stereoguard import fusion, pipeline  # noqa: E402
 
 SCENE = os.path.join(os.path.dirname(ROOT), "Stereo Matching Team_Team18", "Stereo Matching_bonus", "phone_data",
                      "scene1")
-SOURCES = ["dav2s", "dav2l", "moge2", "depthpro", "unidepth"]
+SOURCES = ["unidepth", "moge2l", "metric3d", "moge2", "dav2l", "dav2s", "depthpro"]
 LABELS = {"dav2s": "Depth Anything V2 Metric-S", "dav2l": "Depth Anything V2 Metric-L", "moge2": "MoGe-2 ViT-S",
-          "depthpro": "Depth Pro", "unidepth": "UniDepthV2-L", "mapanything": "MapAnything (camera poses)"}
+          "moge2l": "MoGe-2 ViT-L", "metric3d": "Metric3D v2 ViT-L", "depthpro": "Depth Pro", "unidepth": "UniDepthV2-L",
+          "mapanything": "MapAnything (camera poses)", "fused": "fused (default)"}
 
 
 def main():
@@ -40,6 +41,7 @@ def main():
         models.release(name)
         b, _ = fusion.estimate_baseline(res.disp, res.f, z, res.confident)
         rows.append((name, b))
+    rows.append(("fused", pipeline.fuse_slide_lengths(list(rows))[0]))
     ma = models.get("mapanything")
     s = 1600 / img1.shape[1]
     mv = ma([cv2.resize(img1, None, fx=s, fy=s, interpolation=cv2.INTER_AREA),

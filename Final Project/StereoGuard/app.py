@@ -48,7 +48,7 @@ def run_pair(left_path, right_path, baseline_cm, f35, profile, danger, caution, 
              o["reliable_ratio"]] for o in s["objects"]]
     md = (f"**提示**：{s['hint']}\n\n"
           f"- 焦距：{s['focal_px']:.0f} px（{s['intrinsics']}）\n"
-          f"- 移動距離（基線）：{s['baseline_cm']:.2f} cm（{'使用者輸入' if s['baseline_source'] == 'given' else '由 Depth Pro、UniDepthV2、Depth Anything V2 估計，平均誤差約 15%'}）\n"
+          f"- 移動距離（基線）：{s['baseline_cm']:.2f} cm（{'使用者輸入' if s['baseline_source'] == 'given' else '由 7 個單眼公尺深度模型估計，手機資料上平均誤差約 10%'}）\n"
           f"- 校正後垂直誤差中位數：{s['rectification']['median_abs_dy_px']:.2f} px，"
           f"可靠匹配比例：{100 * s['reliable_stereo_ratio']:.0f}%\n"
           f"- 耗時：" + "，".join(f"{k} {v:.1f}s" for k, v in s["timings_s"].items()))

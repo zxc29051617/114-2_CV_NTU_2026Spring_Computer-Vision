@@ -38,6 +38,8 @@ class Result:
     timings: dict = field(default_factory=dict)
     notes: list = field(default_factory=list)
     valid: np.ndarray = None          # pixels inside the photo after rectification
+    scale_votes: list = field(default_factory=list)   # (model, slide length) when it was estimated
+    R_left: np.ndarray = None         # rectifying rotation of the left camera (for ground-truth warping)
 
 
 class Models:
@@ -45,12 +47,14 @@ class Models:
 
     Defaults were chosen from the measurements in eval/ (see README):
       stereo  GPU: FoundationStereo ViT-L (most accurate)   CPU: Fast-FoundationStereo (ONNX)
-      scale   GPU: geometric mean of the slide lengths implied by Depth Pro, UniDepthV2-L and
-                   Depth Anything V2 Metric-L (15 % mean error on 26 scenes)   CPU: DA-V2 Metric-S
+      scale   GPU: seven single-image metric models (UniDepthV2-L, MoGe-2 S/L, Metric3D v2, Depth Pro,
+                   DA-V2 Metric S/L), each bias-corrected and weighted by its log-error variance
+                   (scale_fusion.json, fitted by eval/eval_scale_fusion.py; ~10 % error on held-out
+                   phone pairs)   CPU: DA-V2 Metric-S with its bias correction
       focal   EXIF if present, otherwise GPU: VGGT (4 % error on phone-camera data)   CPU: MoGe-2
     """
 
-    SCALE_GPU = ("depthpro", "unidepth", "dav2l")
+    SCALE_GPU = ("unidepth", "moge2l", "metric3d", "moge2", "dav2l", "dav2s", "depthpro")
     SCALE_CPU = ("dav2s",)
 
     def __init__(self, device="auto", stereo="auto", detector="yolo11s-seg.pt", scale="auto", focal="auto",
@@ -104,6 +108,8 @@ class Models:
             "moge2": lambda: mono.MoGe2(device=dev),
             "depthpro": lambda: mono.DepthPro(device=dev),
             "unidepth": lambda: mono.UniDepthV2(device=dev),
+            "metric3d": lambda: mono.Metric3Dv2(device=dev),
+            "moge2l": lambda: mono.MoGe2(repo="Ruicheng/moge-2-vitl-normal", device=dev),
             "vggt": lambda: multiview.VGGTModel(device=dev),
             "mapanything": lambda: multiview.MapAnythingModel(device=dev),
         }
@@ -155,6 +161,26 @@ class Models:
         fov = float(np.median([v for _, v in fovs]))
         label = "median of " + ", ".join(f"{n} {v:.1f}" for n, v in fovs) if len(fovs) > 1 else fovs[0][0]
         return fov, label
+
+_FUSION = None
+
+
+def fuse_slide_lengths(votes):
+    """Combine (model, slide length) estimates: remove each model's mean log bias and average the logs
+    with weights 1 / variance (both measured on Middlebury + ARKitScenes, stereoguard/scale_fusion.json).
+    Returns (slide length, weighted spread of the corrected log estimates)."""
+    global _FUSION
+    if _FUSION is None:
+        import json
+        import os
+        f = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scale_fusion.json")
+        _FUSION = json.load(open(f))["models"] if os.path.exists(f) else {}
+    w = np.array([_FUSION.get(n, {}).get("weight", 1 / 0.3 ** 2) for n, _ in votes])
+    lg = np.array([np.log(b) - _FUSION.get(n, {}).get("bias", 0.0) for n, b in votes])
+    mean = float((w * lg).sum() / w.sum())
+    spread = float(np.sqrt((w * (lg - mean) ** 2).sum() / w.sum())) if len(lg) > 1 else float("nan")
+    return float(np.exp(mean)), spread
+
 
 def _resize(img, w):
     if img.shape[1] == w:
@@ -212,9 +238,7 @@ def analyse_rectified(left, right, f, cx, cy, models: Models, baseline_m=None, p
     else:
         if not b_list:
             raise ValueError("Unknown slide length: give --baseline_cm or enable a monocular metric model.")
-        bs = np.array([b for _, b in b_list])
-        baseline_m = float(np.exp(np.mean(np.log(bs))))          # geometric mean of the estimates
-        spread = float(np.std(np.log(bs))) if len(bs) > 1 else float("nan")
+        baseline_m, spread = fuse_slide_lengths(b_list)
         src = "estimated: " + ", ".join(f"{n} {100 * b:.1f} cm" for n, b in b_list)
     depth_stereo = fusion.disparity_to_depth(disp, f, baseline_m)
     depth_stereo[~valid_px] = np.nan
@@ -238,11 +262,11 @@ def analyse_rectified(left, right, f, cx, cy, models: Models, baseline_m=None, p
             notes += objects.size_check(objs, left.shape)
 
     return Result(left, right, f, cx, cy, disp, confident, depth, depth_stereo, mono_depth, float(baseline_m),
-                  src, spread, objs, fs, prof, timings=timings, notes=notes, valid=valid_px)
+                  src, spread, objs, fs, prof, timings=timings, notes=notes, valid=valid_px, scale_votes=b_list)
 
 
 def analyse_phone_pair(img1, img2, models: Models, baseline_m=None, f35=None, path1=None, profile="tabletop",
-                       work_width=1600, stereo_width=960, use_mono=True):
+                       work_width=1600, stereo_width=960, use_mono=True, K_full=None, pose=None):
     """Two photos from a sideways phone slide -> Result."""
     timings, notes = {}, []
     if img1.shape != img2.shape:
@@ -253,14 +277,18 @@ def analyse_phone_pair(img1, img2, models: Models, baseline_m=None, f35=None, pa
     h, w = a.shape[:2]
 
     hfov_model, fov_src = None, None
-    if not f35 and camera.read_exif_f35(path1) is None:
+    if K_full is None and not f35 and camera.read_exif_f35(path1) is None:
         t = time.perf_counter()
         hfov_model, fov_src = models.focal_fov(a, b)
         timings["fov_s"] = time.perf_counter() - t
     K = camera.guess_intrinsics(path1, w, h, f35_user=f35, hfov_model=hfov_model, model_name=fov_src)
+    if K_full is not None:                       # full calibration known (e.g. from the capture app)
+        sk = w / W0
+        K = camera.Intrinsics(K_full[0][0] * sk, K_full[1][1] * sk, (K_full[0][2] + 0.5) * sk - 0.5,
+                              (K_full[1][2] + 0.5) * sk - 0.5, w, h, "given")
 
     t = time.perf_counter()
-    rp = rectify.rectify_calibrated(a, b, K)
+    rp = rectify.rectify_calibrated(a, b, K, pose=pose)
     timings["rectify_s"] = time.perf_counter() - t
     if rp.swapped:
         notes.append("the second photo was taken from the left: views swapped")
@@ -290,4 +318,7 @@ def analyse_phone_pair(img1, img2, models: Models, baseline_m=None, f35=None, pa
     res.rect_stats.update({"stereo_scale": s, "stereo_width": L.shape[1], "disp_offset_px": d_off,
                            "feature_disp_range_px": [round(dmin, 1), round(dmax, 1)]})
     res.intrinsics_source = K.source
+    res.R_left = rp.R_left
+    res.R_rel_est = rp.R
+    res.swapped = rp.swapped
     return res

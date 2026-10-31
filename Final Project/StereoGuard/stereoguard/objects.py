@@ -224,6 +224,7 @@ SIZE_PRIORS = {
     "bottle": ("height", 0.15, 0.40), "cup": ("height", 0.07, 0.16), "wine glass": ("height", 0.15, 0.30),
     "tv": ("width", 0.45, 1.70), "laptop": ("width", 0.28, 0.42), "keyboard": ("width", 0.30, 0.50),
     "chair": ("height", 0.70, 1.20), "car": ("height", 1.30, 2.00), "person": ("height", 1.40, 2.00),
+    "refrigerator": ("height", 1.40, 2.00), "toilet": ("height", 0.65, 0.85), "couch": ("height", 0.65, 1.00),
 }
 
 

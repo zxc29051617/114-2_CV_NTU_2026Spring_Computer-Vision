@@ -24,6 +24,7 @@ termcolor
 torchmetrics
 scikit-learn
 gdown                      # FoundationStereo checkpoints are shared on Google Drive
+mmengine                   # Metric3D v2 configs (pulls opencv-python; see the note below)
 gradio>=5
 trimesh
 imageio

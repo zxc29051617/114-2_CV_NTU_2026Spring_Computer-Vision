@@ -30,7 +30,7 @@ from stereoguard import fusion  # noqa: E402
 
 LABELS = {"dav2s": "Depth Anything V2 Metric-S", "dav2l": "Depth Anything V2 Metric-L", "moge2s": "MoGe-2 ViT-S",
           "moge2l": "MoGe-2 ViT-L", "depthpro": "Depth Pro", "unidepth": "UniDepthV2-L",
-          "mapanything": "MapAnything (2 views)", "vggt": "VGGT (2 views)"}
+          "mapanything": "MapAnything (2 views)", "vggt": "VGGT (2 views)", "metric3d": "Metric3D v2 ViT-L"}
 
 
 def build(name, device):
@@ -47,6 +47,8 @@ def build(name, device):
         return mono.DepthPro(device=device)
     if name == "unidepth":
         return mono.UniDepthV2(device=device)
+    if name == "metric3d":
+        return mono.Metric3Dv2(device=device)
     if name == "mapanything":
         return multiview.MapAnythingModel(device=device)
     if name == "vggt":
@@ -103,7 +105,7 @@ def main():
                 zm, _ = model(item["L"], hfov_deg=item["hfov"])            # true FoV where supported
                 row["B_depth"], _ = fusion.estimate_baseline(item["d"], item["f"], zm, item["conf"],
                                                              doffs=item["doffs"])
-                if name not in ("dav2s", "dav2l"):
+                if name not in ("dav2s", "dav2l", "metric3d"):
                     _, fov = model(item["L"])                                # camera from the image only
                     row["f_pred"] = item["L"].shape[1] / (2 * np.tan(np.radians(fov) / 2))
             times.append(time.perf_counter() - t)
